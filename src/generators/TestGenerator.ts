@@ -84,88 +84,86 @@ export class TestGenerator {
       const context = this.buildTestContext(endpoint);
 
       const messages = [
-        vscode.LanguageModelChatMessage
-          .User(`Generate a comprehensive Jest test suite for a NestJS endpoint with complete context analysis.
+        vscode.LanguageModelChatMessage.User(`/**
+ * 🎯 OBJECTIVE:
+ * Generate a comprehensive, production-grade Jest test suite for a specific NestJS endpoint.
+ * The test suite must demonstrate deep understanding of the endpoint structure, dependencies,
+ * DTO validation, guards, interceptors, and business logic as inferred from the full project context.
+ */
 
-ENDPOINT DETAILS:
+ENDPOINT METADATA:
 - Controller: ${endpoint.controller}
-- Method: ${endpoint.handlerName}
-- HTTP Method: ${endpoint.method}
-- Route: ${endpoint.path}
+- Handler: ${endpoint.handlerName}
+- Method: ${endpoint.method}
+- Path: ${endpoint.path}
 - Description: ${endpoint.description || "No description"}
 - Input DTO: ${endpoint.inputDto || "None specified"}
 - Output DTO: ${endpoint.outputDto || "None specified"}
-- Guards: ${
-          endpoint.guards && endpoint.guards.length > 0
-            ? endpoint.guards.join(", ")
-            : "None"
-        }
-- Pipes: ${
-          endpoint.pipes && endpoint.pipes.length > 0
-            ? endpoint.pipes.join(", ")
-            : "None"
-        }
+- Guards: ${endpoint.guards?.length ? endpoint.guards.join(", ") : "None"}
+- Pipes: ${endpoint.pipes?.length ? endpoint.pipes.join(", ") : "None"}
 - Interceptors: ${
-          endpoint.interceptors && endpoint.interceptors.length > 0
+          endpoint.interceptors?.length
             ? endpoint.interceptors.join(", ")
             : "None"
         }
 - Access Level: ${endpoint.isPublic ? "Public" : "Protected"}
-- Tags: ${
-          endpoint.tags && endpoint.tags.length > 0
-            ? endpoint.tags.join(", ")
-            : "None"
-        }
+- Tags: ${endpoint.tags?.length ? endpoint.tags.join(", ") : "None"}
 
-COMPREHENSIVE CODEBASE CONTEXT:
+FULL CODEBASE CONTEXT:
 ${context}
 
-GENERATE REQUIREMENTS:
-Please analyze ALL the provided context (controller, services, DTOs, entities, base entities) and generate a complete Jest test file that:
+TASK:
+Based on the above metadata and code context, generate a fully functional Jest test file in TypeScript that meets the following specifications:
 
-1. **Smart Mock Generation**: 
-   - Create realistic mock data based on actual DTO structures and entity schemas
-   - Include proper validation test cases based on DTO constraints
-   - Mock all injected services with their actual method signatures
+1. ✅ SMART MOCKING:
+   - Auto-generate mock data using DTO fields and entity schema types.
+   - Respect required/optional fields.
+   - Mock nested relations and arrays where applicable.
+   - Use realistic, type-safe mock values (e.g., UUIDs, dates, emails).
 
-2. **Comprehensive Test Coverage**:
-   - Success scenarios with valid data
-   - Validation error scenarios (400 responses)
-   - Authentication/authorization tests based on guards
-   - Edge cases based on entity relationships and constraints
-   - Database error handling scenarios
+2. ✅ TEST COVERAGE:
+   - Happy path: endpoint returns expected response with valid data.
+   - DTO validation: missing/invalid input triggers 400.
+   - Guard behavior: simulate unauthorized access and permission checks.
+   - Edge cases: handle empty inputs, invalid relations, long strings, etc.
+   - Service/repository errors: simulate failures with proper 500/4xx responses.
 
-3. **Realistic Data**:
-   - Use actual property names and types from entities/DTOs
-   - Respect optional vs required fields
-   - Include relationship data where applicable
-   - Handle base entity inheritance properly
+3. ✅ TEST STRUCTURE:
+   - Use '@nestjs/testing' to create a 'TestingModule'.
+   - Mock all dependencies ('Service', 'Repository', etc).
+   - Use 'supertest' for HTTP testing.
+   - Organize tests in 'describe()' and 'it()' blocks clearly:
+     - Setup
+     - Success Cases
+     - Validation Errors
+     - Authorization Cases
+     - Error Handling
+   - Include 'beforeEach' and 'afterEach' for setup/teardown.
 
-4. **Proper Test Structure**:
-   - Complete NestJS testing module setup with all dependencies
-   - Supertest for HTTP endpoint testing
-   - Proper beforeEach/afterEach setup and cleanup
-   - Organized test groups with clear descriptions
+4. ✅ FORMATTING & STYLE:
+   - Use TypeScript with 2-space indentation and semicolons.
+   - CamelCase for variables, PascalCase for classes.
+   - Group and order imports cleanly:
+     - NestJS imports
+     - 3rd-party modules
+     - Local project files
+   - Use ESLint/prettier-friendly formatting.
+   - Write human-readable test descriptions:
+     e.g., "should return 400 when email is missing in request body".
 
-5. **Production-Ready Code**:
-   - Include all necessary imports based on the codebase
-   - Follow NestJS testing best practices
-   - Proper error assertions and status code checks
-   - Mock repository methods based on actual usage
+5. ✅ FINAL OUTPUT:
+   - A ready-to-run test file (.spec.ts) placed in the proper directory (e.g., \`__tests__\` or next to the controller).
+   - No missing imports, all mocked services/functions used.
+   - Reflects complete understanding of the business logic and data schema.
 
-The generated test should demonstrate deep understanding of the codebase structure and create meaningful test scenarios based on the actual business logic and data models.
+OUTPUT FORMAT:
+- One full TypeScript file as a Jest test suite (e.g., \`my-feature.controller.spec.ts\`).
+- Include all relevant imports.
+- No placeholder text.
+- No explanatory comments (code only).
 
-FORMATTING REQUIREMENTS:
-- Use proper TypeScript formatting with consistent indentation (2 spaces)
-- Include proper line breaks and spacing for readability
-- Use consistent naming conventions (camelCase for variables, PascalCase for classes)
-- Format code blocks with proper alignment
-- Include proper imports with organized import statements
-- Use semicolons consistently
-- Format test descriptions as clear, readable sentences
-- Organize code with proper sections and comments
-
-The final output should be production-ready, well-formatted TypeScript code that passes linting and follows NestJS best practices.`),
+BEGIN GENERATION NOW.
+`),
       ];
 
       const request = await model.sendRequest(

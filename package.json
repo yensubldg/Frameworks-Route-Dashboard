@@ -2,7 +2,7 @@
   "name": "nestjs-dashboard",
   "displayName": "NestJS Dashboard",
   "description": "A VSCode extension to display NestJS HTTP API endpoints in a dashboard view",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "yensubldg",
   "author": {
     "name": "yensubldg",
@@ -109,7 +109,11 @@
         "nestjsDashboard.callGraph.visualizer": {
           "type": "string",
           "default": "mermaid",
-          "enum": ["mermaid", "cytoscape", "tree"],
+          "enum": [
+            "mermaid",
+            "cytoscape",
+            "tree"
+          ],
           "enumDescriptions": [
             "Mermaid - Static flowchart diagrams with export options",
             "Cytoscape - Interactive graph with advanced layouts",
