@@ -71,17 +71,17 @@ jobs:
         ls -la *.vsix
         echo ""
         echo "Package contents:"
-        vsce ls
+        npx @vscode/vsce ls
         
     - name: Publish to VS Code Marketplace
       if: !inputs.dry_run
       run: |
         if [ -n "${{ inputs.version }}" ]; then
           echo "Publishing with specified version: ${{ inputs.version }}"
-          vsce publish ${{ inputs.version }} --no-dependencies
+          npx @vscode/vsce publish ${{ inputs.version }} --no-dependencies
         else
           echo "Publishing with package.json version: ${{ steps.package.outputs.version }}"
-          vsce publish --no-dependencies
+          npx @vscode/vsce publish --no-dependencies
         fi
       env:
         VSCE_PAT: ${{ secrets.VSCE_PAT }}

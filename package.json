@@ -183,8 +183,8 @@
     "clean": "rimraf dist",
     "lint": "echo 'Linting not configured yet'",
     "test": "echo 'Tests not configured yet'",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "package": "npx @vscode/vsce package",
+    "publish": "npx @vscode/vsce publish"
   },
   "dependencies": {
     "ts-morph": "^13.0.0",

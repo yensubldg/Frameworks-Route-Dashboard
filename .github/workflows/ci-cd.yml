@@ -191,7 +191,7 @@ jobs:
           echo "✅ Version check passed: $PACKAGE_VERSION"
 
       - name: Publish to VS Code Marketplace
-        run: vsce publish --no-dependencies
+        run: npx @vscode/vsce publish --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
