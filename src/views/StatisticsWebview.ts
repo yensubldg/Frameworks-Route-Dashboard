@@ -8,6 +8,7 @@ export interface StatisticsData {
     byController: Record<string, number>;
     byModule: Record<string, number>;
     publicVsPrivate: { public: number; private: number };
+    byFramework: Record<string, number>;
   };
   entities: {
     total: number;
@@ -84,6 +85,7 @@ export class StatisticsWebview {
     const endpointsByMethod: Record<string, number> = {};
     const endpointsByController: Record<string, number> = {};
     const endpointsByModule: Record<string, number> = {};
+    const endpointsByFramework: Record<string, number> = {};
     let publicCount = 0;
     let privateCount = 0;
 
@@ -100,6 +102,10 @@ export class StatisticsWebview {
       // By module
       const module = (endpoint as any).module || "main";
       endpointsByModule[module] = (endpointsByModule[module] || 0) + 1;
+
+      // By framework
+      const fw = (endpoint as any).framework || "unknown";
+      endpointsByFramework[fw] = (endpointsByFramework[fw] || 0) + 1;
 
       // Public vs Private
       if ((endpoint as any).isPublic) {
@@ -165,6 +171,7 @@ export class StatisticsWebview {
         byController: endpointsByController,
         byModule: endpointsByModule,
         publicVsPrivate: { public: publicCount, private: privateCount },
+        byFramework: endpointsByFramework,
       },
       entities: {
         total: entities.length,
@@ -583,6 +590,22 @@ export class StatisticsWebview {
                   .toLowerCase()
                   .replace(" ", "")}">${stats.overview.codebaseHealth}</span>
             </div>
+        </div>
+
+        <!-- Frameworks Split -->
+        <div class="stat-card">
+            <h3><span class="card-icon">🧩</span>Frameworks</h3>
+            ${Object.entries(stats.endpoints.byFramework)
+              .map(([fw, count]) => {
+                const label = fw === 'nestjs' ? 'NestJS' : fw === 'fastapi' ? 'FastAPI' : fw;
+                return `
+                  <div class="stat-item">
+                    <span>${label}</span>
+                    <span class="stat-value">${count}</span>
+                  </div>
+                `;
+              })
+              .join("")}
         </div>
 
         <!-- Endpoints by Method -->

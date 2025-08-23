@@ -81,26 +81,6 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Swagger viewer integration"
-        },
-        "frameworkRoutesDashboard.useGitHubCopilot": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use GitHub Copilot for intelligent test generation (requires GitHub Copilot extension)"
-        },
-        "frameworkRoutesDashboard.copilotModel": {
-          "type": "string",
-          "default": "gpt-4o",
-          "enum": [
-            "gpt-4o",
-            "gpt-4",
-            "gpt-3.5-turbo"
-          ],
-          "enumDescriptions": [
-            "GPT-4o - Latest and most capable model (recommended)",
-            "GPT-4 - High quality, good for complex tasks",
-            "GPT-3.5 Turbo - Faster but less capable"
-          ],
-          "description": "GitHub Copilot model to use for test generation"
         }
       }
     },
@@ -146,16 +126,6 @@
         "command": "frameworkRoutesDashboard.createSwaggerSetup",
         "title": "Framework Routes Dashboard: Create Swagger Setup",
         "icon": "$(file-add)"
-      },
-      {
-        "command": "frameworkRoutesDashboard.configureCopilot",
-        "title": "Framework Routes Dashboard: Configure GitHub Copilot",
-        "icon": "$(robot)"
-      },
-      {
-        "command": "frameworkRoutesDashboard.selectCopilotModel",
-        "title": "Framework Routes Dashboard: Select Copilot Model",
-        "icon": "$(settings-gear)"
       }
     ],
     "viewsContainers": {
@@ -169,12 +139,6 @@
     },
     "views": {
       "frameworkRoutesDashboard": [
-        {
-          "id": "copilotModel",
-          "name": "GitHub Copilot",
-          "when": "config.frameworkRoutesDashboard.useGitHubCopilot",
-          "icon": ""
-        },
         {
           "id": "apiEndpoints",
           "name": "API Endpoints",
@@ -207,16 +171,7 @@
       ],
       "view/item/inline": [],
       "view/item/context": [],
-      "commandPalette": [
-        {
-          "command": "frameworkRoutesDashboard.configureCopilot",
-          "when": "workspaceHasNestProject"
-        },
-        {
-          "command": "frameworkRoutesDashboard.selectCopilotModel",
-          "when": "workspaceHasNestProject"
-        }
-      ]
+      "commandPalette": []
     }
   },
   "scripts": {
