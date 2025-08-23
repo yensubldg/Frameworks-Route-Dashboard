@@ -13,6 +13,10 @@ permissions:
   actions: read
   checks: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -43,14 +49,13 @@ jobs:
 
   package:
     needs: test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -60,9 +65,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install VSCE
-        run: npx @vscode/vsce package
 
       - name: Compile TypeScript
         run: npm run compile
@@ -82,7 +84,7 @@ jobs:
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.package.outputs.name }}-${{ steps.package.outputs.version }}-${{ matrix.os }}
+          name: ${{ steps.package.outputs.name }}-${{ steps.package.outputs.version }}
           path: "*.vsix"
           retention-days: 30
   release:
@@ -91,34 +93,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
         with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install VSCE
-        run: npx @vscode/vsce package
-
-      - name: Compile TypeScript
-        run: npm run compile
-
-      - name: Package extension
-        run: npm run package
-
-      - name: Get package info
-        id: package
-        run: |
-          PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          PACKAGE_NAME=$(node -p "require('./package.json').name")
-          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
-          echo "name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          path: artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -129,7 +107,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            *.vsix
+            artifacts/**/*.vsix
           body: |
             ## Changes in this Release
 
@@ -163,15 +141,6 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install VSCE
-        run: npx @vscode/vsce publish
-
-      - name: Compile TypeScript
-        run: npm run compile
-
       - name: Get package info
         id: package
         run: |
@@ -190,8 +159,22 @@ jobs:
           fi
           echo "✅ Version check passed: $PACKAGE_VERSION"
 
+      - name: Download packaged artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Check VSCE_PAT is set
+        run: |
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "VSCE_PAT is not set. Add a 'VSCE_PAT' secret with a Marketplace PAT."
+            exit 1
+          fi
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
       - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --no-dependencies
+        run: npx @vscode/vsce publish --packagePath artifacts/**/*.vsix --no-dependencies
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
