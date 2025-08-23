@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
-import { NestParser, EntityInfo, PropertyInfo } from "./parser/NestParser";
+import { Parser, EntityInfo, PropertyInfo } from "./parser/Parser";
 
-type EntityNode = EntityInfo | PropertyInfo;
+type EntityNode = FrameworkNode | EntityInfo | PropertyInfo;
+
+interface FrameworkNode {
+  type: "framework";
+  name: string; // "NestJS" | "FastAPI"
+  key: "nestjs" | "fastapi";
+  entities: EntityInfo[];
+}
 
 export class EntityTreeProvider implements vscode.TreeDataProvider<EntityNode> {
   private _onDidChangeTreeData: vscode.EventEmitter<
@@ -12,13 +19,30 @@ export class EntityTreeProvider implements vscode.TreeDataProvider<EntityNode> {
 
   private expandedEntities: Set<string> = new Set();
 
-  constructor(private parser: NestParser) {}
+  constructor(private parser: Parser) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
   }
 
   getTreeItem(element: EntityNode): vscode.TreeItem {
+    if (this.isFrameworkNode(element)) {
+      const totalProps = element.entities.reduce(
+        (sum, e) => sum + (e.properties?.length || 0),
+        0
+      );
+      const item = new vscode.TreeItem(
+        element.name,
+        vscode.TreeItemCollapsibleState.Expanded
+      );
+      item.contextValue = "framework";
+      item.iconPath = new vscode.ThemeIcon(
+        element.key === "nestjs" ? "server-environment" : "flame"
+      );
+      item.tooltip = `${element.name} (${element.entities.length} entities, ${totalProps} properties)`;
+      return item;
+    }
+
     if (this.isEntityInfo(element)) {
       const label = element.tableName
         ? `${element.name} (${element.tableName})`
@@ -38,7 +62,7 @@ export class EntityTreeProvider implements vscode.TreeDataProvider<EntityNode> {
         new vscode.ThemeColor("symbolIcon.classForeground")
       );
       item.command = {
-        command: "nestjsDashboard.expandAndOpenEntity",
+        command: "frameworkRoutesDashboard.expandAndOpenEntity",
         title: "Expand and Open Entity",
         arguments: [element],
       };
@@ -96,13 +120,45 @@ export class EntityTreeProvider implements vscode.TreeDataProvider<EntityNode> {
 
   getChildren(element?: EntityNode): Thenable<EntityNode[]> {
     if (!element) {
-      const entities = this.parser.parseEntities();
-      return Promise.resolve(entities);
+      const entities = this.parser.parseEntities ? this.parser.parseEntities() : [];
+
+      // Group by framework
+      const byFramework = new Map<"nestjs" | "fastapi", EntityInfo[]>();
+      entities.forEach((e) => {
+        const fw = (e.framework || "nestjs") as "nestjs" | "fastapi"; // default nestjs
+        const list = byFramework.get(fw) || [];
+        list.push(e);
+        byFramework.set(fw, list);
+      });
+
+      const frameworks: FrameworkNode[] = [];
+      byFramework.forEach((ents, fwKey) => {
+        frameworks.push({
+          type: "framework",
+          name: fwKey === "nestjs" ? "NestJS" : "FastAPI",
+          key: fwKey,
+          entities: ents,
+        });
+      });
+
+      if (frameworks.length > 1) {
+        return Promise.resolve(frameworks);
+      }
+      if (frameworks.length === 1) {
+        return Promise.resolve(frameworks[0].entities);
+      }
+      return Promise.resolve([]);
+    } else if (this.isFrameworkNode(element)) {
+      return Promise.resolve(element.entities);
     } else if (this.isEntityInfo(element)) {
       return Promise.resolve(element.properties);
     } else {
       return Promise.resolve([]);
     }
+  }
+
+  private isFrameworkNode(element: EntityNode): element is FrameworkNode {
+    return (element as any).type === "framework";
   }
 
   private isEntityInfo(element: EntityNode): element is EntityInfo {

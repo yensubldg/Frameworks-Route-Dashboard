@@ -1,7 +1,14 @@
 import * as vscode from "vscode";
-import { NestParser, EndpointInfo } from "./parser/NestParser";
+import { Parser, EndpointInfo } from "./parser/Parser";
 
-type ApiNode = ControllerNode | EndpointInfo;
+type ApiNode = FrameworkNode | ControllerNode | EndpointInfo;
+
+interface FrameworkNode {
+  type: "framework";
+  name: string; // "NestJS" | "FastAPI"
+  key: "nestjs" | "fastapi";
+  controllers: ControllerNode[];
+}
 
 interface ControllerNode {
   type: "controller";
@@ -16,14 +23,28 @@ export class ApiTreeProvider implements vscode.TreeDataProvider<ApiNode> {
   readonly onDidChangeTreeData: vscode.Event<ApiNode | undefined | void> =
     this._onDidChangeTreeData.event;
 
-  constructor(private parser: NestParser) {}
+  constructor(private parser: Parser) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
   }
 
   getTreeItem(element: ApiNode): vscode.TreeItem {
-    if (this.isControllerNode(element)) {
+    if (this.isFrameworkNode(element)) {
+      const item = new vscode.TreeItem(
+        element.name,
+        vscode.TreeItemCollapsibleState.Expanded
+      );
+      item.contextValue = "framework";
+      item.iconPath = new vscode.ThemeIcon(
+        element.key === "nestjs" ? "server-environment" : "flame"
+      );
+      item.tooltip = `${element.name} (${element.controllers.reduce(
+        (sum, c) => sum + c.endpoints.length,
+        0
+      )} endpoints)`;
+      return item;
+    } else if (this.isControllerNode(element)) {
       const item = new vscode.TreeItem(
         element.name,
         vscode.TreeItemCollapsibleState.Collapsed
@@ -33,14 +54,7 @@ export class ApiTreeProvider implements vscode.TreeDataProvider<ApiNode> {
         "symbol-class",
         new vscode.ThemeColor("symbolIcon.classForeground")
       );
-      item.tooltip = `${element.name} (${element.endpoints.length} endpoints)\nClick the beaker icon to generate tests`;
-
-      // Add command for click action
-      item.command = {
-        command: "nestjsDashboard.generateControllerTests",
-        title: "Generate Controller Tests",
-        arguments: [element],
-      };
+      item.tooltip = `${element.name} (${element.endpoints.length} endpoints)`;
 
       return item;
     } else if (this.isEndpointNode(element)) {
@@ -56,11 +70,11 @@ export class ApiTreeProvider implements vscode.TreeDataProvider<ApiNode> {
       }
 
       item.contextValue = "endpoint";
-      item.tooltip = `${element.method} ${element.path}\nClick the beaker icon to generate test`;
+      item.tooltip = `${element.method} ${element.path}`;
 
       // Add command for click action
       item.command = {
-        command: "nestjsDashboard.openEndpoint",
+        command: "frameworkRoutesDashboard.openEndpoint",
         title: "Open Endpoint",
         arguments: [element],
       };
@@ -130,23 +144,54 @@ export class ApiTreeProvider implements vscode.TreeDataProvider<ApiNode> {
   getChildren(element?: ApiNode): Thenable<ApiNode[]> {
     if (!element) {
       const endpoints = this.parser.parseEndpoints();
-      const grouped = new Map<string, EndpointInfo[]>();
+
+      // Group endpoints by framework and then by controller
+      const byFramework = new Map<"nestjs" | "fastapi", Map<string, EndpointInfo[]>>();
       endpoints.forEach((ep: EndpointInfo) => {
-        const list = grouped.get(ep.controller) || [];
+        const fw = (ep.framework || "nestjs") as "nestjs" | "fastapi"; // default to nestjs for backward compat
+        if (!byFramework.has(fw)) byFramework.set(fw, new Map());
+        const controllers = byFramework.get(fw)!;
+        const controller = ep.controller || "default";
+        const list = controllers.get(controller) || [];
         list.push(ep);
-        grouped.set(ep.controller, list);
-      });
-      const controllers: ControllerNode[] = [];
-      grouped.forEach((eps, name) => {
-        controllers.push({ type: "controller", name, endpoints: eps });
+        controllers.set(controller, list);
       });
 
-      return Promise.resolve(controllers);
+      const frameworks: FrameworkNode[] = [];
+      byFramework.forEach((controllers, fwKey) => {
+        const controllerNodes: ControllerNode[] = [];
+        controllers.forEach((eps, name) => {
+          controllerNodes.push({ type: "controller", name, endpoints: eps });
+        });
+        frameworks.push({
+          type: "framework",
+          name: fwKey === "nestjs" ? "NestJS" : "FastAPI",
+          key: fwKey,
+          controllers: controllerNodes,
+        });
+      });
+
+      if (frameworks.length > 1) {
+        return Promise.resolve(frameworks);
+      }
+
+      // Single framework: return just controllers for a flatter tree
+      if (frameworks.length === 1) {
+        return Promise.resolve(frameworks[0].controllers);
+      }
+
+      return Promise.resolve([]);
+    } else if (this.isFrameworkNode(element)) {
+      return Promise.resolve(element.controllers);
     } else if (this.isControllerNode(element)) {
       return Promise.resolve(element.endpoints);
     } else {
       return Promise.resolve([]);
     }
+  }
+
+  private isFrameworkNode(element: ApiNode): element is FrameworkNode {
+    return (element as any).type === "framework";
   }
 
   private isControllerNode(element: ApiNode): element is ControllerNode {
@@ -155,7 +200,9 @@ export class ApiTreeProvider implements vscode.TreeDataProvider<ApiNode> {
 
   private isEndpointNode(element: ApiNode): element is EndpointInfo {
     return (
-      (element as any).type !== "controller" && element.hasOwnProperty("method")
+      (element as any).type !== "controller" &&
+      (element as any).type !== "framework" &&
+      Object.prototype.hasOwnProperty.call(element, "method")
     );
   }
 }

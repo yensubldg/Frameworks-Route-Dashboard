@@ -8,46 +8,7 @@ import {
   Decorator,
 } from "ts-morph";
 import { ConfigurationManager } from "../ConfigurationManager";
-
-export interface EndpointInfo {
-  method: string;
-  path: string;
-  controller: string;
-  handlerName: string;
-  summary?: string;
-  description?: string;
-  filePath: string;
-  lineNumber: number;
-  inputDto?: string;
-  outputDto?: string;
-  guards?: string[];
-  middlewares?: string[];
-  pipes?: string[];
-  interceptors?: string[];
-  tags?: string[];
-  isPublic?: boolean;
-  module?: string;
-}
-
-export interface EntityInfo {
-  name: string;
-  tableName?: string;
-  properties: PropertyInfo[];
-  filePath: string;
-  lineNumber: number;
-  module?: string;
-  imports?: string[];
-  relationships?: RelationshipInfo[];
-}
-
-export interface PropertyInfo {
-  name: string;
-  type: string;
-  decorators: string[];
-  isOptional?: boolean;
-  defaultValue?: string;
-  validationRules?: string[];
-}
+import { Parser, EndpointInfo, EntityInfo, PropertyInfo } from "./Parser";
 
 export interface RelationshipInfo {
   type: "OneToOne" | "OneToMany" | "ManyToOne" | "ManyToMany";
@@ -69,7 +30,7 @@ export interface SwaggerInfo {
   version?: string;
 }
 
-export class NestParser {
+export class NestParser implements Parser {
   private config = ConfigurationManager.getInstance();
 
   private extractDecorators(method: MethodDeclaration): {
@@ -170,9 +131,13 @@ export class NestParser {
       return ["apps/**/*.ts", "libs/**/*.ts", "src/**/*.ts"];
     }
 
-    // Use configured root folder
-    const rootFolder = this.config.rootFolder;
-    return [`${rootFolder}/**/*.ts`];
+    // Use configured root folder, but also include nested src folders and controller files
+    const rootFolder = this.config.rootFolder || "src";
+    return [
+      `${rootFolder}/**/*.ts`,
+      `**/${rootFolder}/**/*.ts`,
+      `**/*.controller.ts`,
+    ];
   }
 
   parseEndpoints(): EndpointInfo[] {
@@ -183,8 +148,8 @@ export class NestParser {
     }
     const rootPath = folders[0].uri.fsPath;
 
+    // Initialize project without assuming root tsconfig exists
     const project = new Project({
-      tsConfigFilePath: path.join(rootPath, "tsconfig.json"),
       skipAddingFilesFromTsConfig: true,
     });
 
@@ -250,6 +215,7 @@ export class NestParser {
                       endpoints.push({
                         method: decoName.toUpperCase(),
                         path: fullPath,
+                        handler: method.getName(),
                         controller: cls.getName() || "",
                         handlerName: method.getName(),
                         summary,
@@ -265,6 +231,7 @@ export class NestParser {
                         tags: decoratorInfo.tags,
                         isPublic: decoratorInfo.isPublic,
                         module: this.getModuleName(sourceFile.getFilePath()),
+                        framework: "nestjs",
                       });
                     }
                   });
@@ -285,7 +252,6 @@ export class NestParser {
     const rootPath = folders[0].uri.fsPath;
 
     const project = new Project({
-      tsConfigFilePath: path.join(rootPath, "tsconfig.json"),
       skipAddingFilesFromTsConfig: true,
     });
 
@@ -346,6 +312,7 @@ export class NestParser {
                 module: undefined,
                 imports: [],
                 relationships: [],
+                framework: "nestjs",
               });
             }
           });

@@ -1,12 +1,18 @@
-# NestJS Dashboard
+# Framework Routes Dashboard
 
-![NestJS Dashboard Logo](media/logo.png)
+![Framework Routes Dashboard Logo](media/logo.png)
 
-A powerful VS Code extension that provides a comprehensive dashboard view of all HTTP API endpoints and TypeORM entities in your NestJS projects. Now with AI-powered test generation, advanced analytics, and monorepo support. Streamline your development workflow by having instant access to your entire API structure, data models, and intelligent tooling.
+A powerful VS Code extension that provides a comprehensive dashboard view of all HTTP API endpoints in your NestJS and FastAPI projects. Now with AI-powered test generation, advanced analytics, and monorepo support. Streamline your development workflow by having instant access to your entire API structure, data models, and intelligent tooling.
 
 ## ✨ Features
 
-### 🧪 Intelligent Test Generation (NEW in v0.1.0)
+### 🚀 Multi-Framework Support (NEW in v0.2.0)
+
+- **Smart Detection**: Automatically detects the framework (NestJS, FastAPI) in your workspace.
+- **Unified Interface**: Consistent dashboard experience for all supported frameworks.
+- **Extensible Architecture**: Designed to easily support more frameworks in the future.
+
+### 🧪 Intelligent Test Generation
 
 - **AI-Powered Test Creation**: Generate comprehensive tests for endpoints and controllers using GitHub Copilot
 - **Multiple Test Types**: Support for unit tests, integration tests, and e2e tests
@@ -74,7 +80,7 @@ A powerful VS Code extension that provides a comprehensive dashboard view of all
 
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "NestJS Dashboard"
+3. Search for "Framework Routes Dashboard"
 4. Click Install
 
 ### Manual Installation
@@ -88,8 +94,8 @@ A powerful VS Code extension that provides a comprehensive dashboard view of all
 
 ### Getting Started
 
-1. Open any NestJS project in VS Code
-2. Look for the **NestJS Dashboard** icon in the Activity Bar (left sidebar)
+1. Open any NestJS or FastAPI project in VS Code
+2. Look for the **Framework Routes Dashboard** icon in the Activity Bar (left sidebar)
 3. Click to open the dashboard panel
 4. Your API endpoints will automatically appear under "API Endpoints"
 5. Your TypeORM entities will automatically appear under "Entities"
@@ -130,18 +136,18 @@ A powerful VS Code extension that provides a comprehensive dashboard view of all
 
 Access commands via Command Palette (`Ctrl+Shift+P`):
 
-- `NestJS Dashboard: Refresh API Endpoints`
-- `NestJS Dashboard: Show Statistics Dashboard`
-- `NestJS Dashboard: Configure GitHub Copilot`
-- `NestJS Dashboard: Select App (Monorepo)`
+- `Framework Routes Dashboard: Refresh API Endpoints`
+- `Framework Routes Dashboard: Show Statistics Dashboard`
+- `Framework Routes Dashboard: Configure GitHub Copilot`
+- `Framework Routes Dashboard: Select App (Monorepo)`
 
 ## 🛠️ Requirements
 
 - **VS Code**: Version 1.85.0 or higher (required for AI features)
-- **NestJS Project**: Works with any NestJS TypeScript project
-- **TypeORM** (optional): For entity detection and visualization
+- **Supported Frameworks**: NestJS (TypeScript), FastAPI (Python)
+- **TypeORM** (optional, NestJS): For entity detection and visualization
 - **GitHub Copilot** (optional): For AI-powered test generation
-- **File Structure**: Recognizes standard NestJS project structures (`src/`, `apps/`, `libs/`)
+- **File Structure**: Recognizes standard project structures for supported frameworks
 
 ## ⚙️ Extension Settings
 
@@ -149,38 +155,37 @@ Configure the extension through VS Code settings:
 
 ### Basic Configuration
 
-- `nestjsDashboard.rootFolder`: Root folder to scan (default: "src")
-- `nestjsDashboard.showMethodColors`: Enable HTTP method colors (default: true)
-- `nestjsDashboard.enableHoverTooltips`: Show detailed tooltips (default: true)
+- `frameworkRoutesDashboard.rootFolder`: Root folder to scan (default: "src" for NestJS, "app" for FastAPI)
+- `frameworkRoutesDashboard.showMethodColors`: Enable HTTP method colors (default: true)
+- `frameworkRoutesDashboard.enableHoverTooltips`: Show detailed tooltips (default: true)
 
 ### Monorepo Settings
 
-- `nestjsDashboard.monorepoMode`: Enable monorepo support (default: false)
-- `nestjsDashboard.selectedApp`: Selected app in monorepo mode
+- `frameworkRoutesDashboard.monorepoMode`: Enable monorepo support (default: false)
+- `frameworkRoutesDashboard.selectedApp`: Selected app in monorepo mode
 
 ### AI & Test Generation
 
-- `nestjsDashboard.enableTestGeneration`: Enable test generation features (default: true)
-- `nestjsDashboard.useGitHubCopilot`: Use GitHub Copilot for test generation (default: true)
-- `nestjsDashboard.copilotModel`: Preferred Copilot model (default: "gpt-4o")
+- `frameworkRoutesDashboard.enableTestGeneration`: Enable test generation features (default: true)
+- `frameworkRoutesDashboard.useGitHubCopilot`: Use GitHub Copilot for test generation (default: true)
+- `frameworkRoutesDashboard.copilotModel`: Preferred Copilot model (default: "gpt-4o")
 
 ### Integration Features
 
-- `nestjsDashboard.enableSwaggerIntegration`: Enable Swagger integration (default: true)
-- `nestjsDashboard.enabledRouteGroups`: Route groups to display
+- `frameworkRoutesDashboard.enableSwaggerIntegration`: Enable Swagger integration (default: true)
+- `frameworkRoutesDashboard.enabledRouteGroups`: Route groups to display
 
-## 📋 Supported Decorators
+## 📋 Supported Decorators & Patterns
 
-The extension recognizes the following NestJS HTTP decorators:
+The extension recognizes the following decorators and patterns:
 
-- `@Get()`
-- `@Post()`
-- `@Put()`
-- `@Patch()`
-- `@Delete()`
-- `@Options()`
-- `@Head()`
-- `@All()`
+### NestJS
+
+- `@Get()`, `@Post()`, `@Put()`, `@Patch()`, `@Delete()`, `@Options()`, `@Head()`, `@All()`
+
+### FastAPI
+
+- `app.get()`, `app.post()`, `app.put()`, `app.patch()`, `app.delete()`, `app.options()`, `app.head()`
 
 ## 🐛 Known Issues
 
@@ -192,6 +197,12 @@ The extension recognizes the following NestJS HTTP decorators:
 Found a bug? [Report it here](https://github.com/yensubldg/nestjs-dashboard-extension/issues)
 
 ## 🗂️ Release Notes
+
+### 0.2.0 (Upcoming Release)
+
+- ✨ **Multi-Framework Support**: Added support for FastAPI.
+- 🚀 **Framework Detection**: Smart detection of NestJS and FastAPI projects.
+-  rebranding: Renamed extension to "Framework Routes Dashboard".
 
 ### 0.1.0 (Latest Release)
 
@@ -245,8 +256,8 @@ This extension is released under the [MIT License](LICENSE).
 
 ## 🔗 Links
 
-- **GitHub Repository**: [nestjs-dashboard-extension](https://github.com/yensubldg/nestjs-dashboard-extension)
-- **VS Code Marketplace**: [NestJS Dashboard](https://marketplace.visualstudio.com/items?itemName=yensubldg.nestjs-dashboard)
+- **GitHub Repository**: [framework-routes-dashboard](https://github.com/yensubldg/nestjs-dashboard-extension)
+- **VS Code Marketplace**: [Framework Routes Dashboard](https://marketplace.visualstudio.com/items?itemName=yensubldg.nestjs-dashboard)
 - **Issue Tracker**: [Report Issues](https://github.com/yensubldg/nestjs-dashboard-extension/issues)
 - **Changelog**: [View Changes](CHANGELOG.md)
 
@@ -261,4 +272,4 @@ If you find this extension helpful, please:
 
 ---
 
-Enjoy coding with NestJS Dashboard! 🚀✨
+Enjoy coding with Framework Routes Dashboard! 🚀✨

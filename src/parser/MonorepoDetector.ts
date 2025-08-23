@@ -48,7 +48,12 @@ export class MonorepoDetector {
 
   public isMonorepo(): boolean {
     const info = this.detectMonorepo();
-    return info.apps.length > 0 || info.libs.length > 0;
+    if (info.apps.length > 0 || info.libs.length > 0) {
+      return true;
+    }
+    // Also treat as multi-project if we can detect multiple Python FastAPI apps
+    const pyApps = this.findPythonApps();
+    return pyApps.length > 0;
   }
 
   public getAppPackageInfo(
@@ -132,8 +137,7 @@ export class MonorepoDetector {
     path: string;
   }> {
     const monorepoInfo = this.detectMonorepo();
-
-    return monorepoInfo.apps.map((appName) => {
+    const tsApps = monorepoInfo.apps.map((appName) => {
       const packageInfo = this.getAppPackageInfo(appName);
       return {
         name: appName,
@@ -143,6 +147,10 @@ export class MonorepoDetector {
         path: path.join("apps", appName),
       };
     });
+
+    const pyApps = this.findPythonApps();
+
+    return [...tsApps, ...pyApps];
   }
 
   public getAvailableLibs(): Array<{
@@ -194,5 +202,72 @@ export class MonorepoDetector {
     });
 
     return selected?.label === "All Apps" ? undefined : selected?.label;
+  }
+
+  private findPythonApps(): Array<{
+    name: string;
+    displayName: string;
+    path: string;
+  }> {
+    const results: Array<{ name: string; displayName: string; path: string }> = [];
+    try {
+      const subdirs = fs
+        .readdirSync(this.rootPath, { withFileTypes: true })
+        .filter((d) => d.isDirectory());
+
+      for (const dirent of subdirs) {
+        const dirPath = path.join(this.rootPath, dirent.name);
+        // Skip known non-project folders
+        if (["node_modules", "libs", "apps", ".git", ".venv", "venv", "env"].includes(dirent.name)) {
+          continue;
+        }
+
+        const candidates = [
+          path.join(dirPath, "main.py"),
+          path.join(dirPath, "app", "main.py"),
+          path.join(dirPath, "src", "main.py"),
+        ];
+
+        let isFastAPIApp = false;
+        for (const cand of candidates) {
+          if (fs.existsSync(cand)) {
+            try {
+              const content = fs.readFileSync(cand, "utf-8");
+              if (/from\s+fastapi\s+import\s+FastAPI|import\s+fastapi/i.test(content)) {
+                isFastAPIApp = true;
+                break;
+              }
+            } catch {}
+          }
+        }
+
+        if (!isFastAPIApp) {
+          // Heuristic: search a few files for route decorators
+          try {
+            const files = fs
+              .readdirSync(dirPath)
+              .filter((f) => f.endsWith(".py"))
+              .slice(0, 10);
+            for (const f of files) {
+              const content = fs.readFileSync(path.join(dirPath, f), "utf-8");
+              if (/@(app|router)\.(get|post|put|delete|patch)/i.test(content)) {
+                isFastAPIApp = true;
+                break;
+              }
+            }
+          } catch {}
+        }
+
+        if (isFastAPIApp) {
+          results.push({
+            name: dirent.name,
+            displayName: `${dirent.name} (FastAPI)`,
+            path: dirent.name,
+          });
+        }
+      }
+    } catch {}
+
+    return results;
   }
 }
