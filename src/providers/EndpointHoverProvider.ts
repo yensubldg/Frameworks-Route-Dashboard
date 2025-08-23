@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
-import { NestParser, EndpointInfo } from "../parser/NestParser";
+import { Parser, EndpointInfo } from "../parser/Parser";
 import { ConfigurationManager } from "../ConfigurationManager";
 
 export class EndpointHoverProvider implements vscode.HoverProvider {
-  private parser: NestParser;
+  private parser: Parser;
   private config: ConfigurationManager;
   private endpointsCache: EndpointInfo[] = [];
   private lastCacheUpdate: number = 0;
   private readonly CACHE_DURATION = 30000; // 30 seconds
 
-  constructor(parser: NestParser) {
+  constructor(parser: Parser) {
     this.parser = parser;
     this.config = ConfigurationManager.getInstance();
   }
@@ -67,66 +67,66 @@ export class EndpointHoverProvider implements vscode.HoverProvider {
 
     // Controller and Handler
     markdown.appendMarkdown(`**Controller:** \`${endpoint.controller}\`  \n`);
-    markdown.appendMarkdown(`**Handler:** \`${endpoint.handlerName}\`  \n\n`);
+    markdown.appendMarkdown(`**Handler:** \`${endpoint.handler}\`  \n\n`);
 
     // Description
-    if (endpoint.description) {
-      markdown.appendMarkdown(`**Description:** ${endpoint.description}  \n\n`);
+    if (endpoint.summary) {
+      markdown.appendMarkdown(`**Description:** ${endpoint.summary}  \n\n`);
     }
 
     // DTOs
-    if (endpoint.inputDto || endpoint.outputDto) {
+    if ((endpoint as any).inputDto || (endpoint as any).outputDto) {
       markdown.appendMarkdown(`#### 📋 Data Transfer Objects\n`);
-      if (endpoint.inputDto) {
-        markdown.appendMarkdown(`**Input:** \`${endpoint.inputDto}\`  \n`);
+      if ((endpoint as any).inputDto) {
+        markdown.appendMarkdown(`**Input:** \`${(endpoint as any).inputDto}\`  \n`);
       }
-      if (endpoint.outputDto) {
-        markdown.appendMarkdown(`**Output:** \`${endpoint.outputDto}\`  \n`);
+      if ((endpoint as any).outputDto) {
+        markdown.appendMarkdown(`**Output:** \`${(endpoint as any).outputDto}\`  \n`);
       }
       markdown.appendMarkdown(`\n`);
     }
 
     // Security & Middleware
-    if (endpoint.guards && endpoint.guards.length > 0) {
+    if ((endpoint as any).guards && (endpoint as any).guards.length > 0) {
       markdown.appendMarkdown(`#### 🔒 Guards\n`);
-      endpoint.guards.forEach((guard) => {
+      (endpoint as any).guards.forEach((guard: string) => {
         markdown.appendMarkdown(`- \`${guard}\`  \n`);
       });
       markdown.appendMarkdown(`\n`);
     }
 
-    if (endpoint.pipes && endpoint.pipes.length > 0) {
+    if ((endpoint as any).pipes && (endpoint as any).pipes.length > 0) {
       markdown.appendMarkdown(`#### 🔧 Pipes\n`);
-      endpoint.pipes.forEach((pipe) => {
+      (endpoint as any).pipes.forEach((pipe: string) => {
         markdown.appendMarkdown(`- \`${pipe}\`  \n`);
       });
       markdown.appendMarkdown(`\n`);
     }
 
-    if (endpoint.interceptors && endpoint.interceptors.length > 0) {
+    if ((endpoint as any).interceptors && (endpoint as any).interceptors.length > 0) {
       markdown.appendMarkdown(`#### ⚡ Interceptors\n`);
-      endpoint.interceptors.forEach((interceptor) => {
+      (endpoint as any).interceptors.forEach((interceptor: string) => {
         markdown.appendMarkdown(`- \`${interceptor}\`  \n`);
       });
       markdown.appendMarkdown(`\n`);
     }
 
     // Tags
-    if (endpoint.tags && endpoint.tags.length > 0) {
+    if ((endpoint as any).tags && (endpoint as any).tags.length > 0) {
       markdown.appendMarkdown(`#### 🏷️ Tags\n`);
-      endpoint.tags.forEach((tag) => {
+      (endpoint as any).tags.forEach((tag: string) => {
         markdown.appendMarkdown(`- \`${tag}\`  \n`);
       });
       markdown.appendMarkdown(`\n`);
     }
 
     // Access Level
-    const accessLevel = endpoint.isPublic ? "🌐 Public" : "🔐 Protected";
+    const accessLevel = (endpoint as any).isPublic ? "🌐 Public" : "🔐 Protected";
     markdown.appendMarkdown(`**Access:** ${accessLevel}  \n`);
 
     // Module (for monorepo)
-    if (endpoint.module && endpoint.module !== "main") {
-      markdown.appendMarkdown(`**Module:** \`${endpoint.module}\`  \n`);
+    if ((endpoint as any).module && (endpoint as any).module !== "main") {
+      markdown.appendMarkdown(`**Module:** \`${(endpoint as any).module}\`  \n`);
     }
 
     return new vscode.Hover(markdown);

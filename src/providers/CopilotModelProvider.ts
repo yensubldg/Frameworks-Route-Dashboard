@@ -46,7 +46,7 @@ export class CopilotModelProvider
       item.iconPath = new vscode.ThemeIcon("settings-gear");
       item.contextValue = "changeModel";
       item.command = {
-        command: "nestjsDashboard.selectCopilotModel",
+        command: "frameworkRoutesDashboard.selectCopilotModel",
         title: "Select Copilot Model",
         arguments: [],
       };

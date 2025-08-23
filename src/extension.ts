@@ -1,25 +1,59 @@
 import * as vscode from "vscode";
 import { ApiTreeProvider } from "./ApiTreeProvider";
 import { EntityTreeProvider } from "./EntityTreeProvider";
-import { NestParser, EndpointInfo } from "./parser/NestParser";
+import { NestParser } from "./parser/NestParser";
+import { FastAPIParser } from "./parser/FastAPIParser";
 import { ConfigurationManager } from "./ConfigurationManager";
 import { EndpointHoverProvider } from "./providers/EndpointHoverProvider";
 import { CopilotModelProvider } from "./providers/CopilotModelProvider";
 import { StatisticsWebview } from "./views/StatisticsWebview";
 import { MonorepoDetector } from "./parser/MonorepoDetector";
-import { TestGenerator } from "./generators/TestGenerator";
 import { SwaggerParser } from "./parser/SwaggerParser";
+import { Framework, FrameworkDetector } from "./parser/FrameworkDetector";
+import { CombinedParser, Parser } from "./parser/Parser";
+
+let hasInitialized = false;
 
 export function activate(context: vscode.ExtensionContext) {
+  if (hasInitialized) {
+    return;
+  }
+  hasInitialized = true;
   const config = ConfigurationManager.getInstance();
-  const parser = new NestParser();
+  const frameworks = FrameworkDetector.detectAllFrameworks();
+
+  let parser: Parser;
+  let languages: string[] = [];
+
+  if (frameworks.length === 0) {
+    vscode.window.showInformationMessage(
+      "No supported framework detected (NestJS or FastAPI). The dashboard will be shown but may be empty until a supported project is opened."
+    );
+    parser = new CombinedParser([new NestParser(), new FastAPIParser()]);
+    languages = ["typescript", "python"];
+  } else if (frameworks.length === 1) {
+    if (frameworks[0] === "nestjs") {
+      parser = new NestParser();
+      languages = ["typescript"];
+    } else {
+      parser = new FastAPIParser();
+      languages = ["python"];
+    }
+  } else {
+    // Multiple frameworks detected, combine parsers
+    const parsers = [] as Parser[];
+    if (frameworks.includes("nestjs")) parsers.push(new NestParser());
+    if (frameworks.includes("fastapi")) parsers.push(new FastAPIParser());
+    parser = new CombinedParser(parsers);
+    languages = ["typescript", "python"];
+  }
+
   const monorepoDetector = new MonorepoDetector();
   const apiTreeDataProvider = new ApiTreeProvider(parser);
   const entityTreeDataProvider = new EntityTreeProvider(parser);
   const copilotModelProvider = new CopilotModelProvider();
   const hoverProvider = new EndpointHoverProvider(parser);
   const statisticsWebview = new StatisticsWebview(context, parser);
-  const testGenerator = new TestGenerator();
   const swaggerParser = new SwaggerParser();
 
   // Register tree views using createTreeView for better control
@@ -39,21 +73,20 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(apiTreeView, entityTreeView, copilotModelTreeView);
 
-  const hoverDisposable = vscode.languages.registerHoverProvider(
-    { scheme: "file", language: "typescript" },
-    hoverProvider
+  const hovers = languages.map((lang) =>
+    vscode.languages.registerHoverProvider({ scheme: "file", language: lang }, hoverProvider)
   );
-  context.subscriptions.push(hoverDisposable);
+  context.subscriptions.push(...hovers);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("nestjsDashboard.refresh", () => {
+    vscode.commands.registerCommand("frameworkRoutesDashboard.refresh", () => {
       apiTreeDataProvider.refresh();
       entityTreeDataProvider.refresh();
       copilotModelProvider.refresh();
       hoverProvider.refreshCache();
     }),
     vscode.commands.registerCommand(
-      "nestjsDashboard.openEndpoint",
+      "frameworkRoutesDashboard.openEndpoint",
       (endpoint) => {
         if (endpoint && endpoint.filePath && endpoint.lineNumber) {
           const uri = vscode.Uri.file(endpoint.filePath);
@@ -65,7 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
     ),
-    vscode.commands.registerCommand("nestjsDashboard.openEntity", (entity) => {
+    vscode.commands.registerCommand("frameworkRoutesDashboard.openEntity", (entity) => {
       if (entity && entity.filePath && entity.lineNumber) {
         const uri = vscode.Uri.file(entity.filePath);
         vscode.window.showTextDocument(uri).then((editor) => {
@@ -76,7 +109,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
     vscode.commands.registerCommand(
-      "nestjsDashboard.expandAndOpenEntity",
+      "frameworkRoutesDashboard.expandAndOpenEntity",
       async (entity) => {
         if (entity && entity.filePath && entity.lineNumber) {
           entityTreeDataProvider.expandAndOpenEntity(entity);
@@ -90,10 +123,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
     ),
-    vscode.commands.registerCommand("nestjsDashboard.showStatistics", () => {
+    vscode.commands.registerCommand("frameworkRoutesDashboard.showStatistics", () => {
       statisticsWebview.show();
     }),
-    vscode.commands.registerCommand("nestjsDashboard.selectApp", async () => {
+    vscode.commands.registerCommand("frameworkRoutesDashboard.selectApp", async () => {
       if (monorepoDetector.isMonorepo()) {
         const selectedApp = await monorepoDetector.selectApp();
         if (selectedApp !== undefined) {
@@ -110,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
     vscode.commands.registerCommand(
-      "nestjsDashboard.toggleMonorepoMode",
+      "frameworkRoutesDashboard.toggleMonorepoMode",
       async () => {
         const currentMode = config.monorepoMode;
         await config.updateMonorepoMode(!currentMode);
@@ -121,70 +154,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
       }
     ),
-    vscode.commands.registerCommand(
-      "nestjsDashboard.generateTest",
-      async (endpoint) => {
-        if (config.enableTestGeneration && endpoint) {
-          await testGenerator.generateTestForEndpoint(endpoint);
-        } else {
-          vscode.window.showErrorMessage(
-            "Test generation is disabled or no endpoint selected"
-          );
-        }
-      }
-    ),
-    vscode.commands.registerCommand(
-      "nestjsDashboard.generateControllerTests",
-      async (controller) => {
-        if (!config.enableTestGeneration) {
-          vscode.window.showErrorMessage(
-            "Test generation is disabled in settings"
-          );
-          return;
-        }
-
-        let selectedController: string;
-        let controllerEndpoints: EndpointInfo[];
-
-        if (controller && controller.name) {
-          selectedController = controller.name;
-          controllerEndpoints = controller.endpoints;
-        } else {
-          const endpoints = parser.parseEndpoints();
-          const controllers = [
-            ...new Set(endpoints.map((ep) => ep.controller)),
-          ];
-
-          if (controllers.length === 0) {
-            vscode.window.showInformationMessage("No controllers found");
-            return;
-          }
-
-          const selected = await vscode.window.showQuickPick(controllers, {
-            placeHolder: "Select controller to generate tests for",
-          });
-
-          if (!selected) {
-            return;
-          }
-
-          selectedController = selected;
-          controllerEndpoints = endpoints.filter(
-            (ep) => ep.controller === selected
-          );
-        }
-
-        if (controllerEndpoints.length === 0) {
-          vscode.window.showInformationMessage(
-            `No endpoints found for ${selectedController}`
-          );
-          return;
-        }
-
-        await testGenerator.generateTestsForController(controllerEndpoints);
-      }
-    ),
-    vscode.commands.registerCommand("nestjsDashboard.openSwagger", async () => {
+    vscode.commands.registerCommand("frameworkRoutesDashboard.openSwagger", async () => {
       if (config.enableSwaggerIntegration) {
         await swaggerParser.openSwaggerUI();
       } else {
@@ -194,13 +164,13 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
     vscode.commands.registerCommand(
-      "nestjsDashboard.createSwaggerSetup",
+      "frameworkRoutesDashboard.createSwaggerSetup",
       async () => {
         await swaggerParser.createSwaggerSetup();
       }
     ),
     vscode.commands.registerCommand(
-      "nestjsDashboard.configureCopilot",
+      "frameworkRoutesDashboard.configureCopilot",
       async () => {
         const items = [
           {
@@ -230,7 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
             case "settings":
               await vscode.commands.executeCommand(
                 "workbench.action.openSettings",
-                "nestjsDashboard.useGitHubCopilot"
+                "frameworkRoutesDashboard.useGitHubCopilot"
               );
               break;
             case "install":
@@ -249,7 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     ),
     vscode.commands.registerCommand(
-      "nestjsDashboard.selectCopilotModel",
+      "frameworkRoutesDashboard.selectCopilotModel",
       async () => {
         try {
           if (!vscode.lm || !vscode.lm.selectChatModels) {
@@ -299,7 +269,7 @@ export function activate(context: vscode.ExtensionContext) {
               }
             } else if (choice === "Configure Copilot") {
               await vscode.commands.executeCommand(
-                "nestjsDashboard.configureCopilot"
+                "frameworkRoutesDashboard.configureCopilot"
               );
               return;
             } else {
@@ -397,7 +367,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           if (selection && selection.modelName) {
             await vscode.workspace
-              .getConfiguration("nestjsDashboard")
+              .getConfiguration("frameworkRoutesDashboard")
               .update(
                 "copilotModel",
                 selection.modelName,
@@ -405,7 +375,7 @@ export function activate(context: vscode.ExtensionContext) {
               );
 
             await vscode.workspace
-              .getConfiguration("nestjsDashboard")
+              .getConfiguration("frameworkRoutesDashboard")
               .update(
                 "copilotModel",
                 selection.modelName,
@@ -438,20 +408,22 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(configWatcher);
 
-  const tsWatcher = vscode.workspace.createFileSystemWatcher("**/*.ts");
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    `**/*.{ts,py}`
+  );
   const refreshAll = () => {
     apiTreeDataProvider.refresh();
     entityTreeDataProvider.refresh();
     hoverProvider.refreshCache();
   };
 
-  tsWatcher.onDidChange(refreshAll);
-  tsWatcher.onDidCreate(refreshAll);
-  tsWatcher.onDidDelete(refreshAll);
-  context.subscriptions.push(tsWatcher);
+  watcher.onDidChange(refreshAll);
+  watcher.onDidCreate(refreshAll);
+  watcher.onDidDelete(refreshAll);
+  context.subscriptions.push(watcher);
 
   console.log(
-    'Congratulations, your extension "nestjs-dashboard" is now active!'
+    'Congratulations, your extension "framework-routes-dashboard" is now active!'
   );
 }
 

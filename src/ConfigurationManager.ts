@@ -11,7 +11,7 @@ export class ConfigurationManager {
   }
 
   private getConfig() {
-    return vscode.workspace.getConfiguration("nestjsDashboard");
+    return vscode.workspace.getConfiguration("frameworkRoutesDashboard");
   }
 
   get rootFolder(): string {
@@ -76,7 +76,7 @@ export class ConfigurationManager {
 
   onConfigurationChanged(callback: () => void): vscode.Disposable {
     return vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("nestjsDashboard")) {
+      if (event.affectsConfiguration("frameworkRoutesDashboard")) {
         callback();
       }
     });

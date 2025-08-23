@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { NestParser, EndpointInfo, EntityInfo } from "../parser/NestParser";
+import { Parser, EndpointInfo, EntityInfo } from "../parser/Parser";
 
 export interface StatisticsData {
   endpoints: {
@@ -26,9 +26,9 @@ export interface StatisticsData {
 
 export class StatisticsWebview {
   private panel: vscode.WebviewPanel | undefined;
-  private parser: NestParser;
+  private parser: Parser;
 
-  constructor(private context: vscode.ExtensionContext, parser: NestParser) {
+  constructor(private context: vscode.ExtensionContext, parser: Parser) {
     this.parser = parser;
   }
 
@@ -39,8 +39,8 @@ export class StatisticsWebview {
     }
 
     this.panel = vscode.window.createWebviewPanel(
-      "nestjsStatistics",
-      "NestJS Statistics",
+      "frameworkStatistics",
+      "Framework Statistics",
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -78,7 +78,7 @@ export class StatisticsWebview {
 
   private generateStatistics(): StatisticsData {
     const endpoints = this.parser.parseEndpoints();
-    const entities = this.parser.parseEntities();
+    const entities = this.parser.parseEntities ? this.parser.parseEntities() : [];
 
     // Endpoint statistics
     const endpointsByMethod: Record<string, number> = {};
@@ -93,15 +93,16 @@ export class StatisticsWebview {
         (endpointsByMethod[endpoint.method] || 0) + 1;
 
       // By controller
-      endpointsByController[endpoint.controller] =
-        (endpointsByController[endpoint.controller] || 0) + 1;
+      const controller = endpoint.controller || "default";
+      endpointsByController[controller] =
+        (endpointsByController[controller] || 0) + 1;
 
       // By module
-      const module = endpoint.module || "main";
+      const module = (endpoint as any).module || "main";
       endpointsByModule[module] = (endpointsByModule[module] || 0) + 1;
 
       // Public vs Private
-      if (endpoint.isPublic) {
+      if ((endpoint as any).isPublic) {
         publicCount++;
       } else {
         privateCount++;
@@ -147,7 +148,8 @@ export class StatisticsWebview {
     let healthScore = 100;
     if (averageEndpointsPerController > 20) healthScore -= 20; // Too many endpoints per controller
     if (averagePropertiesPerEntity > 30) healthScore -= 15; // Too many properties per entity
-    if (publicCount / endpoints.length > 0.8) healthScore -= 10; // Too many public endpoints
+    if (endpoints.length > 0 && publicCount / endpoints.length > 0.8)
+      healthScore -= 10; // Too many public endpoints
 
     const codebaseHealth: "Excellent" | "Good" | "Needs Attention" =
       healthScore >= 80
@@ -196,7 +198,7 @@ export class StatisticsWebview {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NestJS Statistics</title>
+    <title>Framework Statistics</title>
     <style>
         :root {
             --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -537,7 +539,7 @@ export class StatisticsWebview {
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 NestJS Dashboard Statistics</h1>
+            <h1>📊 Framework Dashboard Statistics</h1>
             <button class="refresh-btn" onclick="refresh()">🔄 Refresh</button>
         </div>
 
