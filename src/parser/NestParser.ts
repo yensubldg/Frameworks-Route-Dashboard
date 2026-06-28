@@ -33,21 +33,99 @@ export interface SwaggerInfo {
 export class NestParser implements Parser {
   private config = ConfigurationManager.getInstance();
 
-  private extractDecorators(method: MethodDeclaration): {
+  private extractStringOption(text: string, optionName: string): string | undefined {
+    const match = text.match(new RegExp(optionName + "\\s*:\\s*['\"`]([^'\"`]+)['\"`]"));
+    return match?.[1];
+  }
+
+  private extractNumberOption(text: string, optionName: string): number | undefined {
+    const directMatch = text.match(new RegExp(optionName + "\\s*:\\s*(\\d+)"));
+    if (directMatch) {
+      return Number(directMatch[1]);
+    }
+
+    const statusConstantMatch = text.match(
+      new RegExp(optionName + "\\s*:\\s*(?:status\\.)?HTTP_(\\d{3})")
+    );
+    return statusConstantMatch ? Number(statusConstantMatch[1]) : undefined;
+  }
+
+  private extractTypeOption(text: string, optionName: string): string | undefined {
+    const arrowMatch = text.match(
+      new RegExp(optionName + "\\s*:\\s*\\(\\s*\\)\\s*=>\\s*([A-Za-z0-9_.$]+)")
+    );
+    if (arrowMatch) {
+      return arrowMatch[1].split(".").pop();
+    }
+
+    const directMatch = text.match(
+      new RegExp(optionName + "\\s*:\\s*([A-Za-z0-9_.$]+)")
+    );
+    return directMatch ? directMatch[1].split(".").pop() : undefined;
+  }
+
+  private extractTagsFromDecorator(decorator: Decorator): string[] {
+    const tags: string[] = [];
+    decorator.getArguments().forEach((arg) => {
+      if (arg.getKind() === SyntaxKind.StringLiteral) {
+        tags.push((arg as StringLiteral).getLiteralText());
+        return;
+      }
+
+      const text = arg.getText();
+      const matches = text.match(/['"]([^'"]+)['"]/g) || [];
+      matches.forEach((match) => tags.push(match.slice(1, -1)));
+    });
+    return tags;
+  }
+
+  private extractClassTags(cls: import("ts-morph").ClassDeclaration): string[] {
+    const tagsDecorator = cls.getDecorator("ApiTags");
+    return tagsDecorator ? this.extractTagsFromDecorator(tagsDecorator) : [];
+  }
+
+  private extractDecorators(
+    method: MethodDeclaration,
+    classTags: string[] = []
+  ): {
     guards: string[];
     pipes: string[];
     interceptors: string[];
     tags: string[];
     isPublic: boolean;
+    summary?: string;
+    description?: string;
+    statusCodes: number[];
+    requestBodyType?: string;
+    responseType?: string;
+    operationId?: string;
+    deprecated?: boolean;
   } {
     const guards: string[] = [];
     const pipes: string[] = [];
     const interceptors: string[] = [];
-    const tags: string[] = [];
+    const methodTags: string[] = [];
+    const statusCodes = new Set<number>();
     let isPublic = false;
+    let summary: string | undefined;
+    let description: string | undefined;
+    let requestBodyType: string | undefined;
+    let responseType: string | undefined;
+    let operationId: string | undefined;
+    let deprecated = false;
+
+    const responseStatusByDecorator: Record<string, number> = {
+      ApiOkResponse: 200,
+      ApiCreatedResponse: 201,
+      ApiBadRequestResponse: 400,
+      ApiUnauthorizedResponse: 401,
+      ApiForbiddenResponse: 403,
+      ApiNotFoundResponse: 404,
+    };
 
     method.getDecorators().forEach((decorator: Decorator) => {
       const name = decorator.getName();
+      const decoratorText = decorator.getText();
 
       if (name === "UseGuards") {
         const args = decorator.getArguments();
@@ -67,16 +145,39 @@ export class NestParser implements Parser {
       } else if (name === "Public") {
         isPublic = true;
       } else if (name === "ApiTags") {
-        const args = decorator.getArguments();
-        args.forEach((arg) => {
-          if (arg.getKind() === SyntaxKind.StringLiteral) {
-            tags.push((arg as StringLiteral).getLiteralText());
-          }
-        });
+        methodTags.push(...this.extractTagsFromDecorator(decorator));
+      } else if (name === "ApiOperation") {
+        summary = this.extractStringOption(decoratorText, "summary") || summary;
+        description = this.extractStringOption(decoratorText, "description") || description;
+        operationId = this.extractStringOption(decoratorText, "operationId") || operationId;
+      } else if (name === "ApiBody") {
+        requestBodyType = this.extractTypeOption(decoratorText, "type") || requestBodyType;
+      } else if (name === "ApiResponse") {
+        const status = this.extractNumberOption(decoratorText, "status");
+        if (status) statusCodes.add(status);
+        responseType = this.extractTypeOption(decoratorText, "type") || responseType;
+      } else if (responseStatusByDecorator[name]) {
+        statusCodes.add(responseStatusByDecorator[name]);
+        responseType = this.extractTypeOption(decoratorText, "type") || responseType;
+      } else if (name === "ApiDeprecated") {
+        deprecated = true;
       }
     });
 
-    return { guards, pipes, interceptors, tags, isPublic };
+    return {
+      guards,
+      pipes,
+      interceptors,
+      tags: methodTags.length > 0 ? methodTags : classTags,
+      isPublic,
+      summary,
+      description,
+      statusCodes: Array.from(statusCodes),
+      requestBodyType,
+      responseType,
+      operationId,
+      deprecated,
+    };
   }
 
   private extractDTOInfo(method: MethodDeclaration): {
@@ -167,6 +268,7 @@ export class NestParser implements Parser {
           .forEach((cls: import("ts-morph").ClassDeclaration) => {
             const controllerDecorator = cls.getDecorator("Controller");
             if (controllerDecorator) {
+              const classTags = this.extractClassTags(cls);
               let basePath = "/";
               const args = controllerDecorator.getArguments();
               if (args.length > 0) {
@@ -209,7 +311,7 @@ export class NestParser implements Parser {
                       }
 
                       // Extract enhanced metadata
-                      const decoratorInfo = this.extractDecorators(method);
+                      const decoratorInfo = this.extractDecorators(method, classTags);
                       const dtoInfo = this.extractDTOInfo(method);
 
                       endpoints.push({
@@ -218,8 +320,8 @@ export class NestParser implements Parser {
                         handler: method.getName(),
                         controller: cls.getName() || "",
                         handlerName: method.getName(),
-                        summary,
-                        description: summary,
+                        summary: decoratorInfo.summary || summary,
+                        description: decoratorInfo.description || summary,
                         filePath: sourceFile.getFilePath(),
                         lineNumber: method.getStartLineNumber(),
                         inputDto: dtoInfo.inputDto,
@@ -231,6 +333,11 @@ export class NestParser implements Parser {
                         tags: decoratorInfo.tags,
                         isPublic: decoratorInfo.isPublic,
                         module: this.getModuleName(sourceFile.getFilePath()),
+                        statusCodes: decoratorInfo.statusCodes,
+                        deprecated: decoratorInfo.deprecated,
+                        requestBodyType: decoratorInfo.requestBodyType || dtoInfo.inputDto,
+                        responseType: decoratorInfo.responseType || dtoInfo.outputDto,
+                        operationId: decoratorInfo.operationId || `${cls.getName() || "Controller"}_${method.getName()}`,
                         framework: "nestjs",
                       });
                     }

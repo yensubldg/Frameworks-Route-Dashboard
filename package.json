@@ -2,7 +2,7 @@
   "name": "framework-routes-dashboard",
   "displayName": "Framework Routes Dashboard",
   "description": "A VSCode extension to display HTTP API endpoints in a dashboard view for various frameworks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "yensubldg",
   "author": {
     "name": "yensubldg",
@@ -81,6 +81,41 @@
           "type": "boolean",
           "default": true,
           "description": "Enable Swagger viewer integration"
+        },
+        "frameworkRoutesDashboard.enableTestGeneration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-assisted and template-based test generation commands"
+        },
+        "frameworkRoutesDashboard.useGitHubCopilot": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use GitHub Copilot language models when generating tests"
+        },
+        "frameworkRoutesDashboard.copilotModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "enum": [
+            "gpt-4o",
+            "gpt-4",
+            "gpt-3.5-turbo"
+          ],
+          "description": "Preferred GitHub Copilot model for test generation"
+        },
+        "frameworkRoutesDashboard.openApiTitle": {
+          "type": "string",
+          "default": "Framework Routes API",
+          "description": "Title used when generating OpenAPI specs"
+        },
+        "frameworkRoutesDashboard.openApiVersion": {
+          "type": "string",
+          "default": "1.0.0",
+          "description": "Version used when generating OpenAPI specs"
+        },
+        "frameworkRoutesDashboard.openApiServerUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "Server URL used when generating OpenAPI specs"
         }
       }
     },
@@ -126,6 +161,41 @@
         "command": "frameworkRoutesDashboard.createSwaggerSetup",
         "title": "Framework Routes Dashboard: Create Swagger Setup",
         "icon": "$(file-add)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.generateTestForEndpoint",
+        "title": "Framework Routes Dashboard: Generate Test for Endpoint",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.generateTestsForController",
+        "title": "Framework Routes Dashboard: Generate Tests for Controller",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.copyEndpointCurl",
+        "title": "Framework Routes Dashboard: Copy Endpoint as cURL",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.copyEndpointMarkdown",
+        "title": "Framework Routes Dashboard: Copy Endpoint as Markdown",
+        "icon": "$(markdown)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.generateOpenApiSpec",
+        "title": "Framework Routes Dashboard: Generate OpenAPI Spec",
+        "icon": "$(json)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.previewOpenApiSpec",
+        "title": "Framework Routes Dashboard: Preview OpenAPI Spec",
+        "icon": "$(preview)"
+      },
+      {
+        "command": "frameworkRoutesDashboard.copyOpenApiSpec",
+        "title": "Framework Routes Dashboard: Copy OpenAPI Spec",
+        "icon": "$(copy)"
       }
     ],
     "viewsContainers": {
@@ -167,11 +237,64 @@
           "command": "frameworkRoutesDashboard.selectApp",
           "when": "view == apiEndpoints",
           "group": "navigation"
+        },
+        {
+          "command": "frameworkRoutesDashboard.generateOpenApiSpec",
+          "when": "view == apiEndpoints",
+          "group": "navigation@4"
+        },
+        {
+          "command": "frameworkRoutesDashboard.previewOpenApiSpec",
+          "when": "view == apiEndpoints",
+          "group": "navigation@5"
         }
       ],
       "view/item/inline": [],
-      "view/item/context": [],
-      "commandPalette": []
+      "view/item/context": [
+        {
+          "command": "frameworkRoutesDashboard.generateTestForEndpoint",
+          "when": "view == apiEndpoints && viewItem == endpoint",
+          "group": "inline@1"
+        },
+        {
+          "command": "frameworkRoutesDashboard.generateTestsForController",
+          "when": "view == apiEndpoints && viewItem == controller",
+          "group": "inline@1"
+        },
+        {
+          "command": "frameworkRoutesDashboard.copyEndpointCurl",
+          "when": "view == apiEndpoints && viewItem == endpoint",
+          "group": "copy@1"
+        },
+        {
+          "command": "frameworkRoutesDashboard.copyEndpointMarkdown",
+          "when": "view == apiEndpoints && viewItem == endpoint",
+          "group": "copy@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "frameworkRoutesDashboard.showStatistics"
+        },
+        {
+          "command": "frameworkRoutesDashboard.refresh"
+        },
+        {
+          "command": "frameworkRoutesDashboard.selectApp"
+        },
+        {
+          "command": "frameworkRoutesDashboard.toggleMonorepoMode"
+        },
+        {
+          "command": "frameworkRoutesDashboard.generateOpenApiSpec"
+        },
+        {
+          "command": "frameworkRoutesDashboard.previewOpenApiSpec"
+        },
+        {
+          "command": "frameworkRoutesDashboard.copyOpenApiSpec"
+        }
+      ]
     }
   },
   "scripts": {

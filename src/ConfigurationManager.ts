@@ -58,6 +58,18 @@ export class ConfigurationManager {
     return this.getConfig().get("copilotModel", "gpt-4o");
   }
 
+  get openApiTitle(): string {
+    return this.getConfig().get("openApiTitle", "Framework Routes API");
+  }
+
+  get openApiVersion(): string {
+    return this.getConfig().get("openApiVersion", "1.0.0");
+  }
+
+  get openApiServerUrl(): string {
+    return this.getConfig().get("openApiServerUrl", "http://localhost:3000");
+  }
+
   async updateSelectedApp(appName: string): Promise<void> {
     await this.getConfig().update(
       "selectedApp",

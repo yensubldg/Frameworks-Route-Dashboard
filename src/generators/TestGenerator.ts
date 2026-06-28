@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import { EndpointInfo } from "../parser/NestParser";
+import { EndpointInfo } from "../parser/Parser";
 import { ConfigurationManager } from "../ConfigurationManager";
 
 export class TestGenerator {
@@ -498,7 +498,7 @@ The final output should be production-ready, well-formatted TypeScript code that
       if (!model) {
         return null;
       }
-      const controller = endpoints[0].controller;
+      const controller = endpoints[0].controller || "Controller";
       const controllerContext = this.buildControllerContext(endpoints[0]);
 
       const endpointSummary = endpoints
@@ -716,7 +716,7 @@ import * as request from 'supertest';
   ): Promise<void> {
     if (endpoints.length === 0) return;
 
-    const controller = endpoints[0].controller;
+    const controller = endpoints[0].controller || "Controller";
 
     // Show progress indicator
     const progress = await vscode.window.withProgress(

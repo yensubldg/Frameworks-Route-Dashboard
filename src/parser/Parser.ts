@@ -18,6 +18,11 @@ export interface EndpointInfo {
   module?: string;
   framework?: "nestjs" | "fastapi";
   handlerName?: string;
+  statusCodes?: number[];
+  deprecated?: boolean;
+  requestBodyType?: string;
+  responseType?: string;
+  operationId?: string;
 }
 
 export interface EntityInfo {

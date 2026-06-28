@@ -22,6 +22,7 @@ export interface StatisticsData {
     averageEndpointsPerController: number;
     averagePropertiesPerEntity: number;
     codebaseHealth: "Excellent" | "Good" | "Needs Attention";
+    insights: string[];
   };
 }
 
@@ -163,6 +164,37 @@ export class StatisticsWebview {
         : healthScore >= 60
         ? "Good"
         : "Needs Attention";
+    const busiestController = Object.entries(endpointsByController).sort(
+      (a, b) => b[1] - a[1]
+    )[0];
+    const publicRatio = endpoints.length > 0 ? publicCount / endpoints.length : 0;
+    const insights: string[] = [];
+
+    if (endpoints.length === 0) {
+      insights.push("No endpoints detected yet. Check rootFolder, monorepo mode, or open a supported NestJS/FastAPI workspace.");
+    } else {
+      insights.push(
+        busiestController
+          ? busiestController[0] + " is the busiest controller with " + busiestController[1] + " endpoints."
+          : "Controller distribution looks balanced."
+      );
+
+      if (publicRatio > 0.8) {
+        insights.push("More than 80% of endpoints are marked public. Review auth guards before release.");
+      } else if (publicRatio < 0.2) {
+        insights.push("Most endpoints appear protected. Keep public health checks and docs routes easy to discover.");
+      } else {
+        insights.push("Public and protected endpoints are reasonably balanced.");
+      }
+    }
+
+    if (averageEndpointsPerController > 20) {
+      insights.push("Some controllers are getting dense. Consider splitting by resource or use case.");
+    }
+
+    if (relationshipCount > entities.length && entities.length > 0) {
+      insights.push("Entity relationships are active in this project. Keep serialization boundaries explicit to avoid circular responses.");
+    }
 
     return {
       endpoints: {
@@ -187,6 +219,7 @@ export class StatisticsWebview {
         averagePropertiesPerEntity:
           Math.round(averagePropertiesPerEntity * 10) / 10,
         codebaseHealth,
+        insights,
       },
     };
   }
@@ -198,7 +231,20 @@ export class StatisticsWebview {
     this.panel.webview.html = this.getWebviewContent(stats);
   }
 
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   private getWebviewContent(stats: StatisticsData): string {
+    const endpointTotal = Math.max(stats.endpoints.total, 1);
+    const healthClass = stats.overview.codebaseHealth === "Needs Attention"
+      ? "attention"
+      : stats.overview.codebaseHealth.toLowerCase();
     return `
 <!DOCTYPE html>
 <html>
@@ -532,6 +578,19 @@ export class StatisticsWebview {
             align-items: end;
         }
 
+        .insight-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .insight-item {
+            border-left: 3px solid var(--vscode-textLink-foreground, #0078d4);
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            border-radius: 6px;
+            padding: 10px 12px;
+        }
+
         .pulse {
             animation: pulse 2s infinite;
         }
@@ -586,9 +645,12 @@ export class StatisticsWebview {
             </div>
             <div class="stat-item">
                 <span>Codebase Health:</span>
-                <span class="health-indicator health-${stats.overview.codebaseHealth
-                  .toLowerCase()
-                  .replace(" ", "")}">${stats.overview.codebaseHealth}</span>
+                <span class="health-indicator health-${healthClass}">${stats.overview.codebaseHealth}</span>
+            </div>
+            <div class="insight-list">
+                ${stats.overview.insights
+                  .map((insight) => `<div class="insight-item">${this.escapeHtml(insight)}</div>`)
+                  .join("")}
             </div>
         </div>
 
@@ -647,7 +709,7 @@ export class StatisticsWebview {
             <div class="security-chart">
                 <div class="chart-bar" style="height: ${
                   (stats.endpoints.publicVsPrivate.public /
-                    stats.endpoints.total) *
+                    endpointTotal) *
                   80
                 }px; background: linear-gradient(135deg, #28a745, #20c997);">
                     <div class="chart-value">${
@@ -657,7 +719,7 @@ export class StatisticsWebview {
                 </div>
                 <div class="chart-bar" style="height: ${
                   (stats.endpoints.publicVsPrivate.private /
-                    stats.endpoints.total) *
+                    endpointTotal) *
                   80
                 }px; background: linear-gradient(135deg, #dc3545, #e83e8c);">
                     <div class="chart-value">${

@@ -4,6 +4,26 @@ All notable changes to the "nestjs-dashboard" extension will be documented in th
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.3.0] - 2026-06-28
+
+### Added
+
+- OpenAPI 3.0.3 generation from discovered NestJS and FastAPI routes without requiring the app to be running.
+- Commands to generate, preview, and copy OpenAPI specs from the API Endpoints view and Command Palette.
+- OpenAPI settings for title, version, and server URL.
+- Endpoint context actions to generate tests and copy endpoint cURL or Markdown snippets.
+- Smart insights in the statistics dashboard.
+
+### Changed
+
+- Enhanced NestJS metadata extraction for Swagger decorators including ApiOperation, ApiBody, ApiResponse variants, and class-level ApiTags.
+- Enhanced FastAPI route parsing for multi-line decorators, response models, tags, status codes, summaries, descriptions, and deprecated flags.
+
+### Fixed
+
+- Avoided invalid statistics chart values when no endpoints are detected.
+- Improved controller test generation typing and fallback handling.
+
 ## [0.1.0] - 2025-06-16
 
 ### Added
